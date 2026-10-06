@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>АУРА ДРОП — демо (игра продаётся)</title>
+  <meta name="description" content="Аура Дроп — детская казуальная игра-симулятор открытия кейсов для Яндекс Игр. Демо-версия без рекламы. Игра продаётся.">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- ДЕМО-ВЕРСИЯ: Yandex Games SDK и реклама отключены.
+       Полная версия с рекламой и SDK продаётся — см. js/sale.js -->
+
+  <!-- GSAP — анимации открытия кейса и колеса апгрейда -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+</head>
+<body>
+
+  <!-- Экран загрузки -->
+  <div id="loading-screen">
+    <div class="loading-logo">АУРА ДРОП</div>
+    <div class="loading-spinner"></div>
+  </div>
+
+  <!-- Верхняя панель: лого, навигация, баланс -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="topbar-logo"><span class="topbar-logo-accent"></span>АУРА<span class="topbar-logo-sub">ДРОП</span></div>
+      <nav class="topbar-nav">
+        <button data-nav="cases" class="topbar-nav-btn">Кейсы</button>
+        <button data-nav="inventory" class="topbar-nav-btn">Инвентарь</button>
+        <button data-nav="wheel" class="topbar-nav-btn">Апгрейд</button>
+        <button data-nav="characters" class="topbar-nav-btn">Персонажи</button>
+        <button data-nav="leaderboard" class="topbar-nav-btn">Лидеры</button>
+      </nav>
+      <div class="topbar-balance-group">
+        <button id="sale-open-btn" class="sale-topbar-btn" type="button">₽ Продаётся</button>
+        <button id="topbar-earn-btn" class="topbar-earn-btn" type="button">+50</button>
+        <div class="topbar-balance">
+          <span class="topbar-balance-icon"></span>
+          <span id="balance-display">0</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <!-- Лента живых дропов: слева на десктопе, тикер сверху на мобильном -->
+    <aside class="loot-feed">
+      <div class="loot-feed-header"><span class="live-dot"></span>Live Drops</div>
+      <div id="loot-feed-list" class="loot-feed-list"></div>
+    </aside>
+
+    <main id="app">
+
+      <!-- КЕЙСЫ -->
+      <section class="screen" data-screen="cases">
+        <h2 class="section-title">Все кейсы</h2>
+        <div id="cases-grid" class="cases-grid"></div>
+      </section>
+
+      <!-- ОТКРЫТИЕ КЕЙСА -->
+      <section class="screen" data-screen="caseOpening">
+        <button class="back-btn" data-nav="cases">← К кейсам</button>
+        <h2 id="case-opening-title">Открытие кейса</h2>
+
+        <div class="case-controls">
+          <div id="case-info" class="case-info"></div>
+        </div>
+
+        <div id="reel-viewport" class="reel-viewport tactical-frame">
+          <div class="reel-center-marker"></div>
+          <div id="reel-track" class="reel-track"></div>
+        </div>
+
+        <div class="case-actions">
+          <button id="open-case-btn" class="primary-btn">Открыть кейс</button>
+          <button id="quick-open-btn" class="secondary-btn">Быстрое открытие</button>
+          <button id="free-case-btn" class="secondary-btn">Бесплатный кейс</button>
+        </div>
+
+        <div class="possible-drops-section">
+          <h3>Содержимое кейса</h3>
+          <div id="case-possible-drops-grid" class="inventory-grid small-grid"></div>
+        </div>
+      </section>
+
+      <!-- ИНВЕНТАРЬ -->
+      <section class="screen" data-screen="inventory">
+        <h2 class="section-title">Инвентарь</h2>
+
+        <div id="inventory-filter" class="filter-bar"></div>
+        <p id="inventory-empty" class="hint">Инвентарь пуст — открой кейс!</p>
+        <div id="inventory-grid" class="inventory-grid"></div>
+      </section>
+
+      <!-- КОЛЕСО АПГРЕЙДА -->
+      <section class="screen" data-screen="wheel">
+        <h2 class="section-title">Апгрейд</h2>
+
+        <h3>1. Выбери предмет</h3>
+        <div id="wheel-source-grid" class="inventory-grid small-grid"></div>
+
+        <h3>2. Выбери цель</h3>
+        <div id="wheel-target-grid" class="inventory-grid small-grid"></div>
+
+        <div class="wheel-container tactical-frame">
+          <div id="wheel-dial" class="wheel-dial"></div>
+          <div class="wheel-center-dot"></div>
+          <div id="wheel-needle" class="wheel-needle"></div>
+        </div>
+
+        <div id="wheel-chance" class="wheel-chance">Выбери предмет и цель апгрейда</div>
+
+        <div class="case-actions">
+          <button id="wheel-spin-btn" class="primary-btn" disabled>Крутить</button>
+          <button id="wheel-bonus-spin-btn" class="secondary-btn">Бонус</button>
+        </div>
+      </section>
+
+      <!-- ПЕРСОНАЖИ -->
+      <section class="screen" data-screen="characters">
+        <h2 class="section-title">Персонажи</h2>
+
+        <div id="characters-filter" class="filter-bar"></div>
+        <div id="characters-grid" class="inventory-grid"></div>
+      </section>
+
+      <!-- ТАБЛИЦА ЛИДЕРОВ -->
+      <section class="screen" data-screen="leaderboard">
+        <h2 class="section-title">Таблица лидеров</h2>
+        <div id="leaderboard-list" class="leaderboard-list"></div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Полноэкранная модалка результата (см. ui/resultModal.js) — общая
+       для открытия кейса и колеса апгрейда -->
+  <div id="result-modal" class="result-modal"></div>
+
+  <!-- Полноэкранная модалка карточки персонажа (см. ui/characterModal.js) —
+       открывается кликом по карточке на экране "Персонажи" -->
+  <div id="character-modal" class="result-modal char-modal"></div>
+
+  <!-- Окно "Игра продаётся" (см. js/sale.js) -->
+  <div id="sale-modal" class="sale-modal" role="dialog" aria-modal="true" aria-labelledby="sale-title">
+    <div class="sale-card">
+      <button class="sale-close" type="button" aria-label="Закрыть" data-sale-close>×</button>
+      <div class="sale-kicker">демо-версия · без рекламы</div>
+      <h2 id="sale-title" class="sale-title">Эта игра продаётся</h2>
+      <p class="sale-lead">«Аура Дроп» — готовая казуальная игра для детей, сделанная для <b>Яндекс Игр</b>: симулятор открытия кейсов с персонажами, колесом апгрейда, инвентарём и таблицей лидеров.</p>
+      <p class="sale-lead">Здесь вы играете в демо без рекламы. Продаётся <b>полностью готовая версия с рекламными элементами</b>, которую можно сразу загружать на Яндекс Игры.</p>
+      <h3 class="sale-sub">Что входит в полную версию</h3>
+      <ul class="sale-list">
+        <li>Подключённый Yandex Games SDK (инициализация, LoadingAPI.ready)</li>
+        <li>Rewarded-реклама: «+50 монет», «Бесплатный кейс», «Бонус» к шансу апгрейда</li>
+        <li>Полноэкранная реклама каждые 4 открытия кейса — с обязательным отсчётом «Реклама через 3…» по правилам Яндекса</li>
+        <li>Облачные сохранения прогресса через Player Data API (+ запасной localStorage)</li>
+        <li>Таблица лидеров Яндекс Игр</li>
+        <li>29 кейсов, 55 персонажей с артами, настроенная экономика и редкости</li>
+        <li>Чистый исходный код на HTML / CSS / JS без сборщиков — легко менять под себя</li>
+      </ul>
+      <p class="sale-note">В демо кнопки, которые в полной версии работают за просмотр рекламы, срабатывают бесплатно — чтобы можно было оценить все механики.</p>
+      <h3 class="sale-sub">Цена — договорная</h3>
+      <p class="sale-lead">Обсуждение цены — в личных сообщениях в Telegram или на почте:</p>
+      <div class="sale-contacts">
+        <a class="primary-btn sale-contact" href="https://t.me/lamex30" target="_blank" rel="noopener">Telegram @lamex30</a>
+        <a class="secondary-btn sale-contact" href="mailto:l4mex@protonmail.com?subject=%D0%90%D1%83%D1%80%D0%B0%20%D0%94%D1%80%D0%BE%D0%BF">l4mex@protonmail.com</a>
+      </div>
+      <button class="sale-play" type="button" data-sale-close>Играть в демо →</button>
+    </div>
+  </div>
+
+  <script src="js/sale.js?v=3"></script>
+  <script type="module" src="js/main.js?v=3"></script>
+</body>
+</html>

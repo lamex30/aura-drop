@@ -1,0 +1,1687 @@
+/* ============================================================
+   АУРА ДРОП — тактический HUD-стиль в духе CS:GO / Standoff 2:
+   тёмная сталь, острые/срезанные углы, конденсированные шрифты,
+   редкость показывается тонкой полосой снизу карточки (как цвет
+   скина), никаких мягких градиентных "пузырей" и эмодзи-плашек.
+   ============================================================ */
+
+:root {
+  --bg: #0a0c10;
+  --bg-elevated: #10131a;
+  --bg-panel: #151922;
+  --bg-panel-hover: #1b202c;
+  --bg-slot: #0d0f15;
+  --border: #262c38;
+  --border-light: #343c4b;
+  --text: #e7ebf2;
+  --text-dim: #7a8296;
+  --accent: #e08b2e;
+  --accent-light: #f5a83f;
+  --accent-dark: #a8631a;
+  --steel: #4a5568;
+  --gold: #e8c15a;
+  --danger: #d8483f;
+  --success: #4a9e5c;
+  --border-radius: 3px;
+  --topbar-height: 64px;
+  --font-display: 'Oswald', 'Segoe UI', Arial, sans-serif;
+  --font-body: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Картинка предмета/кейса (см. ui/visualHelper.js) */
+.item-icon {
+  width: 1.15em;
+  height: 1.15em;
+  object-fit: contain;
+  vertical-align: -0.2em;
+  pointer-events: none;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-weight: 600;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Едва заметная диагональная штриховка по всему фону — фактура
+   "металлической плиты", а не плоский цвет — плюс лёгкое затемнение
+   по краям экрана (виньетка), как в меню тактических шутеров. */
+body {
+  background-image:
+    repeating-linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.012) 0px,
+      rgba(255, 255, 255, 0.012) 1px,
+      transparent 1px,
+      transparent 5px
+    ),
+    radial-gradient(ellipse at 50% 0%, rgba(224, 139, 46, 0.05), transparent 55%),
+    radial-gradient(ellipse at 50% 100%, rgba(0, 0, 0, 0.5), transparent 60%);
+  background-attachment: fixed, fixed, fixed;
+}
+
+/* Угловые "прицельные" засечки — переиспользуемый класс для важных
+   панелей (лента прокрутки кейса, колесо апгрейда): 4 маленьких уголка
+   по краям, как разметка HUD в тактических шутерах. */
+.tactical-frame {
+  position: relative;
+}
+.tactical-frame::before,
+.tactical-frame::after,
+.tactical-frame > .corner-tl,
+.tactical-frame > .corner-br {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  z-index: 6;
+  pointer-events: none;
+}
+.tactical-frame::before {
+  top: -1px;
+  left: -1px;
+  border-top: 2px solid var(--accent);
+  border-left: 2px solid var(--accent);
+}
+.tactical-frame::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 2px solid var(--accent);
+  border-right: 2px solid var(--accent);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Маленький монохромный "жетон" валюты вместо эмодзи 💰 —
+   используется везде, где раньше стояла эмодзи-иконка монеты. */
+.coin-icon {
+  display: inline-block;
+  width: 0.62em;
+  height: 0.62em;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--accent-light), var(--accent-dark) 75%);
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  vertical-align: middle;
+  margin-right: 0.28em;
+  margin-bottom: 0.1em;
+}
+
+/* Тег "AD" на кнопках рекламы — прямоугольная плашка вместо 🎬 */
+.ad-tag {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 0.62em;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 1px 5px;
+  margin-left: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+/* ---------- Loading screen ---------- */
+#loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  gap: 20px;
+  transition: opacity 0.3s ease;
+}
+#loading-screen.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.loading-logo {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--bg-panel);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- Topbar ---------- */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.015) 0px,
+      rgba(255, 255, 255, 0.015) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    linear-gradient(180deg, #171a22, #0d0f15);
+  border-bottom: 2px solid var(--accent-dark);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(224, 139, 46, 0.15);
+}
+.topbar-inner {
+  max-width: 1500px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 10px 18px;
+}
+.topbar-logo {
+  display: flex;
+  align-items: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text);
+}
+.topbar-logo-accent {
+  display: inline-block;
+  width: 8px;
+  height: 20px;
+  margin-right: 9px;
+  background: var(--accent);
+  transform: skewX(-12deg);
+  box-shadow: 0 0 8px rgba(224, 139, 46, 0.6);
+}
+.topbar-logo-sub {
+  color: var(--accent);
+  margin-left: 0.4ch;
+}
+.topbar-nav {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+  height: 100%;
+}
+.topbar-nav::-webkit-scrollbar { display: none; }
+.topbar-nav-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.86rem;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 10px 14px 8px;
+  white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.topbar-nav-btn:hover {
+  color: var(--text);
+}
+.topbar-nav-btn.active {
+  color: var(--accent-light);
+  border-bottom-color: var(--accent);
+}
+.topbar-balance-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* Кнопка "+50 монет за рекламу" — рядом с балансом, доступна с любого
+   экрана (в отличие от "Бесплатный кейс", который завязан на конкретный
+   кейс тира 1, см. ui/caseOpeningUI.js). Отдельный, не связанный с
+   кейсами источник монет для тех, кто ещё не может позволить себе кейс. */
+.topbar-earn-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-panel);
+  border: 1px solid var(--accent-dark);
+  color: var(--accent-light);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.86rem;
+  padding: 7px 12px;
+  border-radius: var(--border-radius);
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.topbar-earn-btn:hover {
+  background: var(--bg-panel-hover);
+  border-color: var(--accent);
+}
+.topbar-earn-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.topbar-balance {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-light);
+  padding: 7px 14px;
+  border-radius: var(--border-radius);
+  white-space: nowrap;
+}
+.topbar-balance-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--accent-light), var(--accent-dark) 75%);
+  border: 1px solid rgba(0, 0, 0, 0.4);
+}
+#balance-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--gold);
+}
+
+/* ---------- Layout: sidebar (loot feed) + main content ---------- */
+.layout {
+  display: flex;
+  align-items: flex-start;
+  /* Топбар теперь position: fixed (всегда виден, не уезжает при скролле,
+     см. .topbar) и выпал из нормального потока — компенсируем его
+     высоту отступом сверху, чтобы контент не заезжал под него. */
+  padding-top: var(--topbar-height);
+}
+
+.loot-feed {
+  width: 224px;
+  flex-shrink: 0;
+  position: sticky;
+  top: var(--topbar-height);
+  align-self: flex-start;
+  height: calc(100vh - var(--topbar-height));
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elevated);
+  border-right: 1px solid var(--border);
+}
+.loot-feed-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 16px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--danger);
+  box-shadow: 0 0 6px var(--danger);
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.loot-feed-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  scrollbar-width: thin;
+}
+.loot-feed-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-bottom-width: 3px;
+  border-bottom-color: #444;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.loot-feed-item.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+.loot-feed-item.real {
+  background: linear-gradient(90deg, rgba(224, 139, 46, 0.14), var(--bg-panel));
+  border-color: var(--border-light);
+}
+.loot-feed-icon {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-slot);
+  border: 1px solid var(--border);
+  font-size: 1.3rem;
+  overflow: hidden;
+}
+.loot-feed-icon::before {
+  content: '';
+  position: absolute;
+  inset: -60%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--rarity-color, transparent) 40%, transparent), transparent 70%);
+}
+.loot-feed-icon .item-icon {
+  position: relative;
+  z-index: 1;
+}
+.loot-feed-icon .item-icon {
+  width: 26px;
+  height: 26px;
+}
+.loot-feed-info {
+  min-width: 0;
+}
+.loot-feed-user {
+  font-size: 0.66rem;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.loot-feed-item-name {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Main content / screens ---------- */
+#app {
+  flex: 1;
+  min-width: 0;
+  padding: 20px;
+  padding-bottom: 60px;
+}
+
+.screen {
+  display: none;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 1150px;
+  margin: 0 auto;
+  animation: fadeIn 0.2s ease;
+}
+.screen.active {
+  display: flex;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.section-title {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 4px 0 0;
+  padding: 6px 0 6px 14px;
+  border-left: 3px solid var(--accent);
+  background: linear-gradient(90deg, rgba(224, 139, 46, 0.08), transparent 55%);
+}
+.section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border-light), transparent);
+}
+
+.back-btn {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-family: var(--font-body);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+  padding: 4px 0;
+}
+.back-btn:hover {
+  color: var(--accent-light);
+}
+
+h2 {
+  margin: 4px 0;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+h3 {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+}
+
+.hint {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* ---------- Cases grid (экран "Кейсы") ---------- */
+.cases-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+.case-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--steel);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.case-card:hover {
+  transform: translateY(-2px);
+  border-top-color: var(--accent);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+}
+.case-card:hover .case-card-image::after {
+  transform: translateX(220%) skewX(-20deg);
+}
+.case-card:active {
+  transform: scale(0.98);
+}
+.case-card-image {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 4 / 3;
+  padding: 10px 16px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(255, 255, 255, 0.06), transparent 65%),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.02) 0px, rgba(255, 255, 255, 0.02) 1px, transparent 1px, transparent 8px),
+    var(--bg-slot);
+}
+/* Диагональный блик, "пробегающий" по превью при наведении — характерный
+   приём CS:GO/Standoff для карточек предметов. */
+.case-card-image::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  left: -30%;
+  width: 22%;
+  height: 180%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09), transparent);
+  transform: translateX(-120%) skewX(-20deg);
+  transition: transform 0.55s ease;
+  pointer-events: none;
+}
+.case-card-image .item-icon {
+  max-width: 88%;
+  max-height: 92%;
+  width: auto;
+  height: auto;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.55));
+}
+.case-card-body {
+  padding: 11px 13px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid var(--border);
+}
+.case-card-name {
+  font-family: var(--font-display);
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.case-card-count {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.case-card-price {
+  margin-top: 6px;
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  background: var(--bg-slot);
+  border: 1px solid var(--border-light);
+  color: var(--gold);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 3px 10px;
+  border-radius: 2px;
+}
+.case-card-ad-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--border-light);
+  color: var(--text-dim);
+}
+
+/* ---------- Case controls ---------- */
+.case-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.case-info {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+/* ---------- Reel (case opening animation) ---------- */
+.reel-viewport {
+  position: relative;
+  height: 200px;
+  overflow: hidden;
+  background: var(--bg-slot);
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius);
+}
+.reel-center-marker {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  transform: translateX(-50%);
+  z-index: 5;
+  box-shadow: 0 0 10px var(--accent);
+}
+.reel-track {
+  display: flex;
+  height: 100%;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+.reel-card {
+  position: relative;
+  flex: 0 0 160px;
+  width: 160px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-right: 1px solid var(--border);
+  border-bottom: 4px solid #3a3f4f;
+  background: var(--bg-panel);
+  padding: 8px;
+  text-align: center;
+  overflow: hidden;
+}
+.reel-card::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 130px;
+  height: 130px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--rarity-color, transparent) 30%, transparent), transparent 70%);
+  z-index: 0;
+}
+.reel-card-emoji { position: relative; z-index: 1; font-size: 3.4rem; }
+.reel-card-emoji .item-icon { width: 92px; height: 92px; }
+.reel-card-name { position: relative; z-index: 1; }
+.reel-card-rarity { position: relative; z-index: 1; }
+.reel-card-name { font-size: 0.76rem; line-height: 1.15; }
+.reel-card-rarity {
+  font-family: var(--font-display);
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.reel-card-winner {
+  background: #232a3d;
+}
+
+/* ---------- Actions / buttons ---------- */
+.case-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.primary-btn, .secondary-btn {
+  padding: 13px;
+  border-radius: 0;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  border: none;
+}
+.primary-btn {
+  background: linear-gradient(180deg, var(--accent-light), var(--accent-dark));
+  color: #1a1206;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -10px 14px rgba(0, 0, 0, 0.18),
+    0 3px 0 rgba(0, 0, 0, 0.35);
+}
+.primary-btn:hover { filter: brightness(1.08); }
+.primary-btn:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 1px 0 rgba(0, 0, 0, 0.35);
+}
+.primary-btn:disabled {
+  background: #232732;
+  box-shadow: none;
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+.secondary-btn {
+  background: linear-gradient(180deg, var(--bg-panel-hover), var(--bg-panel));
+  color: var(--text-dim);
+  border: 1px solid var(--border-light);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+.secondary-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.secondary-btn:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+.secondary-btn:disabled {
+  border-color: var(--border);
+  color: #4a5064;
+  cursor: not-allowed;
+}
+
+/* ---------- Possible drops (список состава кейса) ---------- */
+.possible-drops-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.possible-drops-section h3 {
+  margin: 0;
+}
+
+/* ---------- Полноэкранная модалка результата (ui/resultModal.js) ---------- */
+.result-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(5, 6, 9, 0.82);
+  backdrop-filter: blur(4px);
+}
+.result-modal.visible {
+  display: flex;
+}
+.result-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  padding: 40px 28px 28px;
+  text-align: center;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-light);
+  border-top: 3px solid var(--rarity-color, var(--accent));
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+/* Едва заметная карбоновая плетёнка поверх панели — диагональная
+   перекрёстная штриховка в две стороны, как ткань карбона. */
+.result-modal-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.025) 0px, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent 5px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.35) 0px, rgba(0, 0, 0, 0.35) 1px, transparent 1px, transparent 5px);
+}
+.result-modal-card.fail {
+  border-top-color: var(--danger);
+}
+.result-modal-card.win::before {
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.025) 0px, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent 5px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.35) 0px, rgba(0, 0, 0, 0.35) 1px, transparent 1px, transparent 5px),
+    radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--rarity-color, var(--accent)) 20%, transparent), transparent 60%);
+}
+.result-modal-card > * {
+  position: relative;
+  z-index: 1;
+}
+.result-modal-label {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  margin-bottom: 18px;
+}
+.result-modal-icon {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4.5rem;
+}
+.result-modal-icon::before {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  z-index: -1;
+  background: radial-gradient(circle, color-mix(in srgb, var(--rarity-color, var(--accent)) 45%, transparent), transparent 72%);
+}
+.result-modal-icon .item-icon {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.5));
+}
+.result-modal-name {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.result-modal-rarity {
+  margin-top: 6px;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.result-modal-fail-mark {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--danger);
+  background: rgba(216, 72, 63, 0.12);
+  border: 2px solid var(--danger);
+  border-radius: 50%;
+}
+.result-modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 26px;
+}
+.result-modal-actions.single {
+  justify-content: center;
+}
+.modal-action-btn {
+  flex: 1;
+  padding: 12px 8px;
+  background: var(--bg-slot);
+  border: 1px solid var(--border-light);
+  color: var(--text-dim);
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+.modal-action-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.modal-action-sub {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 4px;
+  font-size: 0.85em;
+  color: var(--gold);
+}
+.modal-action-btn.primary {
+  background: linear-gradient(180deg, var(--accent-light), var(--accent-dark));
+  color: #1a1206;
+  border-color: transparent;
+}
+
+/* ---------- Модалка карточки персонажа (ui/characterModal.js) ----------
+   Переиспользует оверлей .result-modal (фон/центрирование), но собственная
+   широкая карточка: слева — инфо (цена, список кейсов-источников с % шанса
+   и кнопкой перехода), справа — крупное изображение персонажа В ЦВЕТЕ
+   (без grayscale-фильтра .inventory-card.locked, даже если персонаж ещё
+   не в инвентаре — это отдельная витрина, а не карточка инвентаря). */
+.char-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  max-height: 88vh;
+  overflow-y: auto;
+  display: flex;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-light);
+  border-top: 3px solid var(--rarity-color, var(--accent));
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6);
+}
+.char-modal-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border-light);
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.char-modal-close:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.char-modal-info {
+  flex: 1 1 55%;
+  min-width: 0;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+}
+.char-modal-name {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-right: 30px;
+}
+.char-modal-rarity {
+  margin-top: 4px;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.char-modal-price {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 14px;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+.char-modal-sources-title {
+  margin-top: 24px;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+}
+.char-modal-sources {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+.char-modal-source-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg-slot);
+  border: 1px solid var(--border);
+}
+.char-modal-source-icon {
+  flex: 0 0 auto;
+  font-size: 1.8rem;
+  line-height: 1;
+}
+.char-modal-source-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.char-modal-source-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.char-modal-source-chance {
+  margin-top: 2px;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+.char-modal-source-btn {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-light);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+}
+.char-modal-source-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.char-modal-visual {
+  flex: 1 1 45%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 20px;
+  font-size: 11rem;
+  background: radial-gradient(circle, color-mix(in srgb, var(--rarity-color, var(--accent)) 30%, transparent), transparent 72%);
+}
+.char-modal-visual .item-icon {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 14px 24px rgba(0, 0, 0, 0.55));
+}
+
+@media (max-width: 860px) {
+  .char-modal-card {
+    flex-direction: column-reverse;
+    max-height: 92vh;
+  }
+  .char-modal-visual {
+    font-size: 7rem;
+    padding: 30px 20px 10px;
+  }
+  .char-modal-info {
+    padding: 20px;
+  }
+}
+
+/* ---------- Предупреждение перед рекламой (ui/adWarningModal.js) ---------- */
+.ad-warning-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 6, 9, 0.92);
+}
+.ad-warning-modal.visible {
+  display: flex;
+}
+.ad-warning-card {
+  text-align: center;
+}
+.ad-warning-label {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+.ad-warning-count {
+  font-family: var(--font-display);
+  font-size: 5rem;
+  font-weight: 700;
+  color: var(--accent-light);
+  text-shadow: 0 0 30px rgba(224, 139, 46, 0.6);
+}
+
+/* ---------- Inventory ---------- */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.filter-btn {
+  padding: 6px 13px;
+  background: var(--bg-panel);
+  color: var(--text-dim);
+  border: 1px solid var(--border-light);
+  border-radius: 2px;
+  font-family: var(--font-body);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-size: 0.76rem;
+}
+.filter-btn.active {
+  background: var(--bg-panel-hover);
+  color: var(--text);
+  border-color: currentColor;
+}
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+}
+.inventory-grid.small-grid {
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+}
+.inventory-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-bottom-width: 3px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.1s ease;
+  position: relative;
+  overflow: hidden;
+}
+.inventory-card:hover {
+  background: var(--bg-panel-hover);
+}
+.inventory-card:active {
+  transform: scale(0.97);
+}
+.inventory-card.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+/* Свечение цвета редкости за иконкой (--rarity-color задаётся из JS,
+   см. inventoryUI.js/charactersUI.js/wheelUI.js/caseOpeningUI.js) —
+   приём из CS:GO, где редкие скины подсвечены цветным ореолом. */
+.inventory-card-emoji {
+  position: relative;
+  font-size: 1.7rem;
+  z-index: 1;
+}
+.inventory-card-emoji::before {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--rarity-color, transparent) 35%, transparent), transparent 70%);
+  z-index: -1;
+}
+.inventory-card-name { font-size: 0.68rem; line-height: 1.1; }
+.inventory-card-rarity {
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.inventory-card-price {
+  display: flex;
+  align-items: center;
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--gold);
+}
+
+/* ---------- Превью "что может выпасть" на экране открытия кейса ----------
+   Крупнее обычных .small-карточек (инвентарь/колесо/каталог) — здесь это
+   единственная цель экрана, поэтому больше места под иконку и отдельная
+   строка с % шанса выпадения (см. caseOpeningUI.js -> renderPossibleDrops). */
+#case-possible-drops-grid.small-grid {
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+}
+.inventory-card.drop-preview {
+  padding: 14px 8px;
+}
+.inventory-card.drop-preview .inventory-card-emoji {
+  font-size: 2.6rem;
+}
+.inventory-card-chance {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--text-dim, #9a9aa5);
+}
+
+.inventory-card.locked {
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+.inventory-card-lock {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-family: var(--font-display);
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 1px 4px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--border-light);
+}
+
+/* ---------- Крупные карточки инвентаря (экраны "Инвентарь"/"Персонажи") ----------
+   Широкая превью-зона сверху (как у .case-card) + отдельная нижняя панель
+   с названием/редкостью — а не квадратный блок с иконкой по центру. */
+.inventory-grid:not(.small-grid) {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+.inventory-card.big {
+  padding: 0;
+  gap: 0;
+  align-items: stretch;
+}
+.inventory-card.big .inventory-card-main {
+  display: flex;
+  flex-direction: column;
+}
+.inventory-card.big .inventory-card-emoji {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.6rem;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(255, 255, 255, 0.05), transparent 65%),
+    var(--bg-slot);
+  border-bottom: 1px solid var(--border);
+}
+.inventory-card.big .inventory-card-emoji .item-icon {
+  max-width: 82%;
+  max-height: 88%;
+  width: auto;
+  height: auto;
+}
+.inventory-card.big .inventory-card-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 10px 10px 0;
+}
+.inventory-card.big .inventory-card-rarity {
+  font-size: 0.65rem;
+  padding: 0 10px 10px;
+}
+
+/* Панель действий — скрыта, раскрывается поверх карточки по клику */
+.inventory-card-actions {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(8, 9, 13, 0.96);
+  z-index: 2;
+}
+.inventory-card.expanded .inventory-card-actions {
+  display: flex;
+}
+.action-btn {
+  padding: 8px 6px;
+  background: var(--bg-slot);
+  border-radius: 2px;
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border: 1px solid;
+}
+.upgrade-btn {
+  border-color: var(--accent);
+  color: var(--accent-light);
+}
+.upgrade-btn:active {
+  background: rgba(224, 139, 46, 0.15);
+}
+.sell-btn {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.sell-btn:active {
+  background: rgba(232, 193, 90, 0.12);
+}
+
+/* ---------- Upgrade wheel ---------- */
+.wheel-container {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  margin: 10px auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wheel-dial {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  border: 5px solid var(--bg-panel);
+  outline: 1px solid var(--border-light);
+  background: conic-gradient(#333 0% 100%);
+}
+
+.wheel-needle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 96px;
+  margin-left: -2.5px;
+  margin-top: -96px;
+  transform-origin: 50% 100%;
+  background: linear-gradient(to top, var(--accent), var(--accent-light));
+  z-index: 5;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+.wheel-needle::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 12px solid var(--accent-light);
+}
+.wheel-center-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  background: var(--bg-elevated);
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 6;
+}
+.wheel-chance {
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* ---------- Leaderboard ---------- */
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 30px 36px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-light);
+  padding: 9px 14px;
+}
+.leaderboard-row.is-player {
+  border-left-color: var(--accent);
+  background: linear-gradient(90deg, rgba(224, 139, 46, 0.12), var(--bg-panel));
+}
+.leaderboard-rank {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--text-dim);
+  text-align: center;
+}
+.leaderboard-row.top1 .leaderboard-rank { color: var(--gold); }
+.leaderboard-row.top2 .leaderboard-rank { color: #c9d3e0; }
+.leaderboard-row.top3 .leaderboard-rank { color: #c98a4b; }
+.leaderboard-avatar {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  background: var(--bg-slot);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.leaderboard-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.leaderboard-name {
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+.you-badge {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  background: var(--accent);
+  color: #1a1206;
+  padding: 1px 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+/* Точка-маркер у настоящих игроков платформы (Yandex Leaderboards API,
+   см. systems/leaderboard.js) — отличает их от фейковых ботов на глаз,
+   не занимая много места в строке. */
+.real-badge {
+  display: inline-block;
+  margin-left: 5px;
+  color: var(--success);
+  font-weight: 900;
+}
+.leaderboard-score {
+  display: flex;
+  align-items: center;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--gold);
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+/* ---------- Responsive ---------- */
+
+/* Мобильный фоллбек: боковая лента дропов превращается в горизонтальный
+   тикер под топбаром, навигация переносится в отдельную строку на всю
+   ширину, чтобы все вкладки были видны без скролла "втихую". */
+@media (max-width: 860px) {
+  :root {
+    /* Топбар в мобильной раскладке становится двухрядным (лого+баланс,
+       затем навигация отдельной строкой) — выше, чем на десктопе. */
+    --topbar-height: 104px;
+  }
+  .layout {
+    flex-direction: column;
+  }
+  .loot-feed {
+    width: 100%;
+    height: 88px;
+    position: static;
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .loot-feed-header {
+    display: none;
+  }
+  .loot-feed-list {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px;
+  }
+  .loot-feed-item {
+    flex: 0 0 auto;
+    min-width: 150px;
+  }
+
+  .topbar-inner {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .topbar-logo {
+    order: 1;
+    font-size: 1rem;
+  }
+  .topbar-balance-group {
+    order: 2;
+    margin-left: auto;
+  }
+  .topbar-nav {
+    order: 3;
+    flex-basis: 100%;
+    justify-content: space-between;
+    overflow-x: visible;
+  }
+  .topbar-nav-btn {
+    flex: 1;
+    padding: 8px 2px;
+    font-size: 0.66rem;
+    text-align: center;
+  }
+  #app {
+    padding: 14px;
+  }
+}
+
+/* =========================================================
+   ДЕМО: кнопка и окно "Игра продаётся" (js/sale.js)
+   ========================================================= */
+.sale-topbar-btn {
+  display: flex;
+  align-items: center;
+  background: var(--gold);
+  border: 1px solid var(--gold);
+  color: #1a1408;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.86rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 7px 12px;
+  border-radius: var(--border-radius);
+  white-space: nowrap;
+  cursor: pointer;
+  animation: sale-pulse 2.4s ease-in-out infinite;
+}
+.sale-topbar-btn:hover { filter: brightness(1.08); }
+@keyframes sale-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 193, 90, 0.55); }
+  50% { box-shadow: 0 0 0 6px rgba(232, 193, 90, 0); }
+}
+body.sale-lock { overflow: hidden; }
+.sale-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(5, 6, 9, 0.86);
+  backdrop-filter: blur(4px);
+}
+.sale-modal.visible { display: flex; }
+.sale-card {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  background: var(--bg-elevated);
+  border: 1px solid var(--gold);
+  border-radius: var(--border-radius);
+  padding: 26px 24px 22px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 1.02rem;
+  line-height: 1.45;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+.sale-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.sale-close:hover { color: var(--text); }
+.sale-kicker {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-light);
+}
+.sale-title {
+  margin: 4px 0 12px;
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.sale-sub {
+  margin: 18px 0 8px;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.sale-lead { margin: 0 0 10px; }
+.sale-lead b { color: var(--gold); }
+.sale-list { margin: 0; padding-left: 20px; }
+.sale-list li { margin-bottom: 5px; }
+.sale-list li::marker { color: var(--accent); }
+.sale-note {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--bg-panel);
+  color: var(--text-dim);
+  font-size: 0.95rem;
+}
+.sale-contacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+.sale-contact {
+  flex: 1 1 200px;
+  text-align: center;
+  text-decoration: none;
+}
+.sale-play {
+  display: block;
+  margin: 18px auto 0;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+.sale-play:hover { color: var(--text); }
+@media (max-width: 600px) {
+  .sale-card { padding: 22px 16px 18px; }
+  .sale-title { font-size: 1.5rem; }
+  .sale-topbar-btn { padding: 6px 8px; font-size: 0.75rem; }
+}
